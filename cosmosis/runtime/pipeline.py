@@ -918,7 +918,7 @@ class LikelihoodPipeline(Pipeline):
         for section,name in self.extra_saves:
             if ('#' in name):
                 n,l = name.split('#')
-                for i in range(l):
+                for i in range(1, int(l)+1):
                     extra_names.append('{}--{}_{}'.format(section,n,i))
             else:
                 extra_names.append('%s--%s'%(section,name))
@@ -1374,26 +1374,34 @@ class LikelihoodPipeline(Pipeline):
 
         extra_saves = []
         for option in self.extra_saves:
-            try:
-                #JAZ - should this be just .get(*option) ?
-                # If the # symbol is present, we have an array-type extra_output and it is
-                # read as numpy.ndarray. We append all of its elements to the extra_saves.
-                # If the total array size does not match the sum of the sizes indicated in the
-                # name #, an exception will be raised.
-                if('#' in option[1]):
-                    value = data.get(option[0], option[1].split('#')[0])
-                else:
-                    value = data.get(*option)
 
-            except block.BlockError:
-                value = np.nan
+            # If the # symbol is present, we have an array-type extra_output and it is
+            # read as numpy.ndarray. We append all of its elements to the extra_saves.
+            if('#' in option[1]):
+                param_name, array_size = option[1].split('#')
+                array_size = int(array_size)
+
+                try:
+                    value = data.get(option[0], param_name)
+
+                    if len(value) != array_size:
+                        sys.stderr.write('\nWARNING: You informed that the number of entries in the array-typed extra_output param {} is {}, but the pipeline returned an array of size {}. Writing nan instead.\n'.format(param_name, array_size, len(value)))
+                        sys.stderr.flush()
+                        raise block.BlockError('', option[0], param_name)
+                except block.BlockError:
+                    value = np.repeat(np.nan, array_size)
+
+            else:
+                try:
+                    value = data.get(*option)
+                except block.BlockError:
+                    value = np.nan
 
             if (type(value)==np.ndarray):
                 for e in value:
                     extra_saves.append(e)
             else:
                 extra_saves.append(value)
-                # ---------------------------- otavio end ---------------------------
 
         self.n_iterations += 1
         if return_data:
