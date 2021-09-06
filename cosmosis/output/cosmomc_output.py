@@ -26,7 +26,7 @@ class CosmoMCOutput(TextColumnOutput):
 
     def _close(self):
         self._write_parameters_multiplicity()
-        super(CosmoMCOutput, self)._close(self)
+        super(CosmoMCOutput, self)._close()
         if self._paramfile:
             self._paramfile.close()
 
