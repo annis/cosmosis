@@ -25,18 +25,20 @@ int main()
   free(val);
   assert(c_datablock_get_array_length(s, "x", "cow") == sz);
   /* Get with preallocated buffer should return the right value. */
-  const int big = 100;
+  #define big 100
   double _Complex buffer[big];
   assert(c_datablock_get_complex_array_1d_preallocated(s, "x", "cow", buffer, &length, big) == DBS_SUCCESS);
+  #undef big
   /* Get with a too-small buffer should fail, and leave the buffer
      untouched. The returned value of length will say how big the
      buffer needs to be. */
-  const int small = 1;
+  #define small  1
   double _Complex too_small[small];
   too_small[0] = DBL_MIN + DBL_MIN * _Complex_I;
   length = 0;
   assert(c_datablock_get_complex_array_1d_preallocated(s, "x", "cow", too_small, &length, small) ==
          DBS_SIZE_INSUFFICIENT);
+  #undef small
   assert(too_small[0] == DBL_MIN + DBL_MIN * _Complex_I);
   assert(length == sz);
   /* Put of the same name into a different section should not collide. */
