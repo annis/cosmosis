@@ -25,7 +25,7 @@ void * setup(c_datablock * options)
 	const char * section = "example";
 
 	// Allocate space for returned config data
-	DATABLOCK_STATUS status=0;
+	DATABLOCK_STATUS status=DBS_SUCCESS;
 	example_data * data = (example_data *)malloc(sizeof(example_data));
 
 	if ( data == NULL ) {
@@ -55,7 +55,7 @@ int execute(c_datablock * block, void * config)
 
 	//We will be reading one parameter, omega, and doing
 	//a likelihood on it
-	DATABLOCK_STATUS status=0;
+	DATABLOCK_STATUS status=DBS_SUCCESS;
 	double omega = 0.0;
 
 	// Load the parameter we want from the datablock

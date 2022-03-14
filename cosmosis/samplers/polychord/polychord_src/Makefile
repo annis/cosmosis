@@ -9,13 +9,13 @@ endif
 
 all: $(TARGETS)
 
-ifeq ($(COSMOSIS_DEBUG),1)
-FFLAGS += -fPIC -ffree-line-length-none
-else
-FFLAGS += -O3 -fPIC -ffree-line-length-none
-endif
+#ifeq ($(COSMOSIS_DEBUG),1)
+#FFLAGS += -fPIC -ffree-line-length-none
+#else
+#FFLAGS += -O3 -fPIC -ffree-line-length-none
+#endif
 
-FFLAGS += -fno-stack-arrays
+#FFLAGS += -fno-stack-arrays
 
 CHORDLIBDIR = ./
 

@@ -97,13 +97,13 @@ void test_array_int()
   /* Get with a too-small buffer should fail, and leave the buffer
      untouched. The returned value of length will say how big the
      buffer needs to be. */
- #define small 100
-  int too_small[small];
+ #define SMALL 1
+  int too_small[SMALL];
   too_small[0] = INT_MIN;
   length = 0;
-  assert(c_datablock_get_int_array_1d_preallocated(s, "x", "cow", too_small, &length, small) ==
+  assert(c_datablock_get_int_array_1d_preallocated(s, "x", "cow", too_small, &length, SMALL) ==
          DBS_SIZE_INSUFFICIENT);
- #undef small
+ #undef SMALL
   assert(too_small[0] == INT_MIN);
   assert(length == sz);
   /* Put of the same name into a different section should not collide. */

@@ -1,40 +1,28 @@
+# Have we been set up already?
+cosmo_cmd=$(type cosmosis 2> /dev/null)
+if [ ! -z "$cosmo_cmd" ]
+then
+  echo CosmoSIS and conda are already set up.
+  return 0
+fi
+
 # detect COSMOSIS_SRC_DIR
 cosmosis_dir=$( (builtin cd $( dirname ${BASH_SOURCE[0]}); /bin/pwd) )
 cosmosis_dir=${cosmosis_dir%/config}
 export COSMOSIS_SRC_DIR="$cosmosis_dir"
 export COSMOSIS_OMP=1
 
-
-if [ "$1" == "2" ]
+# let's find the name of the conda environment we want to use
+CONDA_ENV_NAME=$1
+if [ -z "$CONDA_ENV_NAME" ]
 then
-	PY2=1
-elif [ "$1" == "3" ]
-then
-	PY2=0
-elif [ -d env2 ]
-then
-	PY2=1
-elif [ -d env3 ]
-then
-	PY2=0
-elif [ "$1" == "" ]
-then
-	PY2=0
-else
-	echo "Argument #1 should be 2, 3, or left blank (same as 3) to indicate python version"
-	return
+  echo "=================================================================\n"
+  echo "Hey! You must supply a conda environment name"
+  echo "You can list them with 'conda env list'"
+  echo "\n=================================================================\n"
+  return 1
 fi
 
-if [ "$PY2" == "1" ]
-then
-	ENVDIR=env2
-	PYVER=python2.7
-	echo "Setting up python 2 environment (if you are cool and want to change to python3, source this script with the argument '3')"
-else
-	ENVDIR=env3
-	PYVER=python3.7
-	echo "Setting up python 3 environment (if you are old-fashioned and want python2, source this script with the argument '2' and delete env3 if present)"
-fi
 
 # Modules - depends on the machine
 if [ "$NERSC_HOST" == "cori" ]
@@ -44,67 +32,76 @@ then
         module load cray-fftw/3.3.8.2
         module load cfitsio/3.47
 	module unload craype-hugepages2M
-	if  [ $PY2 == 1 ]
-	then
-	        module load python/2.7-anaconda-2019.07
-	else
-		module load python/3.7-anaconda-2019.07
+	module load python/3.7-anaconda-2019.07
+elif  [ "$NERSC_HOST" == "perlmutter" ]
+then
+	echo "Working on Perlmutter! Using Perlmutter-compiled modules -and- Conda"
+	module load python/3.9-anaconda-2021.11  # to get conda,sh mostly
+	module load cudatoolkit
+	# unfortunate behavior if re-loaded
+	if module is-loaded PrgEnv-gnu 
+	then 
+		echo "module PrgEnv-gnu already loaded"
+	else  
+		module load PrgEnv-gnu
 	fi
+	module load nvidia-mixed
+	module list
 else
-	echo "Unknown NERSC host - was expecting NERSC_HOST variable to be 'cori'"
-	return
+	echo "Unknown NERSC host - was expecting NERSC_HOST variable to be 'cori' or 'perlmutter'"
+	return 1
 fi
 
-# Compilers
-export COSMOSIS_ALT_COMPILERS=1
-export CC=gcc
-export CXX=g++
-export FC=gfortran
-export MPIFC=ftn
+# Ok then.
+conda activate ${CONDA_ENV_NAME} || { echo "Failed to activate conda environment" ; return 1; }
 
-# Environment variables for compilation
-export LAPACK_LINK="-L$CRAY_LIBSCI_PREFIX_DIR/lib -lsci_gnu"
-export GSL_INC=$GSL_DIR/include
-export GSL_LIB=$GSL_DIR/lib
-export FFTW_INCLUDE_DIR=$FFTW_INC
-export FFTW_LIBRARY=$FFTW_DIR
-export CFITSIO_INC=$CFITSIO_DIR/include
-export CFITSIO_LIB=$CFITSIO_DIR/lib
+# Compilers
+if [ "$NERSC_HOST" == "cori" ]
+then
+	# the belief in 2022 is that this is hackier than the Perlmutter branch
+	export COSMOSIS_ALT_COMPILERS=1
+	export CC=gcc
+	export CXX=g++
+	export FC=gfortran
+	export MPIFC=ftn
+
+	# Environment variables for compilation
+	export LAPACK_LINK="-L$CRAY_LIBSCI_PREFIX_DIR/lib -lsci_gnu"
+	export GSL_INC=$GSL_DIR/include
+	export GSL_LIB=$GSL_DIR/lib
+	export FFTW_INCLUDE_DIR=$FFTW_INC
+	export FFTW_LIBRARY=$FFTW_DIR
+	export CFITSIO_INC=$CFITSIO_DIR/include
+	export CFITSIO_LIB=$CFITSIO_DIR/lib
+elif  [ "$NERSC_HOST" == "perlmutter" ]
+then
+	echo "alt compilers  on Perlmutter!"
+	export COSMOSIS_ALT_COMPILERS=1
+	export CC=cc
+	export CXX=CC
+	export FC=ftn
+	export MPIFC=ftn
+	# Environment variables for compilation
+	export FFTW_INCLUDE_DIR=$FFTW_INC
+	export FFTW_LIBRARY=$FFTW_DIR
+	export CFITSIO_DIR=$CONDA_PREFIX
+	export CFITSIO_INC=$CFITSIO_DIR/include
+	export CFITSIO_LIB=$CFITSIO_DIR/lib
+	#export LAPACK_LINK="-L$CRAY_LIBSCI_PREFIX_DIR/lib -lsci_nvidia"
+	export LAPACK_LINK="-L$CRAY_LIBSCI_PREFIX_DIR/lib -lsci_gnu"
+	export GSL_INC=$CONDA_PREFIX/include
+	export GSL_LIB=$CONDA_PREFIX/lib
+	export LD_LIBRARY_PATH=/opt/cray/pe/mpich/8.1.13/ofi/nvidia/20.7/lib-abi-mpich:$LD_LIBRARY_PATH
+fi
 
 # Environment variables for runtime
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$COSMOSIS_SRC_DIR/cosmosis/datablock:$COSMOSIS_SRC_DIR/cosmosis-standard-library/likelihood/planck2015/plc-2.0/:$CFITSIO_LIB:$GSL_LIB:$FFTW_LIBRARY
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$COSMOSIS_SRC_DIR/cosmosis/datablock:$COSMOSIS_SRC_DIR/cosmosis-standard-library/likelihood/planck2015/plc-2.0/:$CFITSIO_LIB:$GSL_LIB:$FFTW_LIBRARY
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$COSMOSIS_SRC_DIR/cosmosis/datablock:$COSMOSIS_SRC_DIR/cosmosis-standard-library/likelihood/planck2015/plc-2.0/
+
 export PYTHONPATH=${COSMOSIS_SRC_DIR}:$PYTHONPATH
 export PATH=$COSMOSIS_SRC_DIR/bin:$PATH
 
 PRE_CONDA_PS1=$PS1
-
-# Conda environment to install and supply python requirements
-# Might find we need to add more to the files here.
-# If this has already been run then a conda environment should exist here already
-# Otherwise create it
-if [ -d $COSMOSIS_SRC_DIR/$ENVDIR ]
-then
-	source activate $COSMOSIS_SRC_DIR/$ENVDIR
-else
-	echo "Creating conda environment (one-off)"
-	# We seem to have to do this in two pieces because conda doesn't have some 
-	# of the requirements, so we use pip for the second lot.
-	# Might need to revisit this.
-
-	# Create the environment with some basic conda stuff in
-	conda create --yes -p $ENVDIR  --file config/nersc-conda-req.txt
-	#Activate it
-	source activate $COSMOSIS_SRC_DIR/$ENVDIR
-
-	# Now this pip points to the one in the environment.
-	# Install most of the rest of the requirements
-	pip install -r config/nersc-pip-req.txt
-
-	# We have to set some options specifically for mpi4py to make sure it picks up the right MPI
-	CFLAGS="-I$MPICH_DIR/include" LDFLAGS="-L$MPICH_DIR/lib -lmpich"  pip install -vvv  mpi4py --no-cache-dir
-fi
-
-
 
 function git-show-top-level {
     local __toplevel=`git rev-parse --show-toplevel 2> /dev/null`
@@ -136,4 +133,4 @@ echo
 echo "CosmoSIS initialized"
 echo
 
-#set-git-prompt-repo-name
+set-git-prompt-repo-name

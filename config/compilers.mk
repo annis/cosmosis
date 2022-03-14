@@ -19,11 +19,16 @@ endif
 
 OS=$(shell uname -s)
 
+
 COMMON_C_FLAGS=$(COMMON_FLAGS) -I${COSMOSIS_SRC_DIR}
 PEDANTIC_C_FLAGS=-Wall -Wextra -pedantic
 CXXFLAGS=$(COMMON_C_FLAGS) $(USER_CXXFLAGS) -std=c++14
 CFLAGS=$(COMMON_C_FLAGS) $(USER_CFLAGS) -std=c99
-FFLAGS=$(COMMON_FLAGS) -I${COSMOSIS_SRC_DIR}/cosmosis/datablock $(USER_FFLAGS) -std=gnu -ffree-line-length-none
+# gnu fortran needs these
+FFLAGS=$(COMMON_FLAGS) -I${COSMOSIS_SRC_DIR}/cosmosis/datablock $(USER_FFLAGS) -std=gnu -ffree-line-length-none -fallow-argument-mismatch
+# playu with gnu2003
+# nvidia fortran needs these not
+# FFLAGS=$(COMMON_FLAGS) -I${COSMOSIS_SRC_DIR}/cosmosis/datablock $(USER_FFLAGS) 
 LDFLAGS=$(USER_LDFLAGS) -L${COSMOSIS_SRC_DIR}/cosmosis/datablock
 PYTHON=python
 MAKEFLAGS += --print-directory
@@ -39,4 +44,8 @@ endif
 
 ifeq (Darwin, $(OS))
   LDFLAGS+=-headerpad_max_install_names
+endif
+
+ifeq (perlmutter, $(NERSC_HOST))
+  FFLAGS+=-DESCAPEBACKSLASH
 endif
