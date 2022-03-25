@@ -37,7 +37,8 @@ elif  [ "$NERSC_HOST" == "perlmutter" ]
 then
 	echo "Working on Perlmutter! Using Perlmutter-compiled modules -and- Conda"
 	module load python/3.9-anaconda-2021.11  # to get conda,sh mostly
-	module load cudatoolkit
+	module unload darshan
+        module load cudatoolkit
 	# unfortunate behavior if re-loaded
 	if module is-loaded PrgEnv-gnu 
 	then 
@@ -45,7 +46,9 @@ then
 	else  
 		module load PrgEnv-gnu
 	fi
-	module load nvidia-mixed
+	module load nvidia-mixed #possible you don't need
+        #module load gcc-mixed, use this for PrgEnv-nvidia
+        module load cray-mpich-abi #if we use this, no need for LD_LIBRARY_PATH
 	module list
 else
 	echo "Unknown NERSC host - was expecting NERSC_HOST variable to be 'cori' or 'perlmutter'"
@@ -79,8 +82,10 @@ then
 	export COSMOSIS_ALT_COMPILERS=1
 	export CC=cc
 	export CXX=CC
-	export FC=ftn
+	#export FC=ftn
+        export FC=gfortran
 	export MPIFC=ftn
+        #export MPIFC=gfortran, this one is in question
 	# Environment variables for compilation
 	export FFTW_INCLUDE_DIR=$FFTW_INC
 	export FFTW_LIBRARY=$FFTW_DIR
@@ -91,8 +96,9 @@ then
 	export LAPACK_LINK="-L$CRAY_LIBSCI_PREFIX_DIR/lib -lsci_gnu"
 	export GSL_INC=$CONDA_PREFIX/include
 	export GSL_LIB=$CONDA_PREFIX/lib
-	export LD_LIBRARY_PATH=/opt/cray/pe/mpich/8.1.13/ofi/nvidia/20.7/lib-abi-mpich:$LD_LIBRARY_PATH
+	#export LD_LIBRARY_PATH=/opt/cray/pe/mpich/8.1.13/ofi/nvidia/20.7/lib-abi-mpich:$LD_LIBRARY_PATH
 fi
+
 
 # Environment variables for runtime
 # export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$COSMOSIS_SRC_DIR/cosmosis/datablock:$COSMOSIS_SRC_DIR/cosmosis-standard-library/likelihood/planck2015/plc-2.0/:$CFITSIO_LIB:$GSL_LIB:$FFTW_LIBRARY
