@@ -680,10 +680,10 @@ contains
 	double precision, allocatable :: evData(:,:), evDataAll(:), evDataTemp(:)
 	
 	!isolated cluster info
-	integer ic_n !no. of nodes
+        integer  ic_n(1) !no. of nodes
 	integer, allocatable :: ic_sc(:), ic_npt(:)
 	logical, allocatable :: ic_done(:)
-	integer, dimension(:), allocatable :: ic_fNode, ic_nsc, ic_nBrnch
+        integer, dimension(:), allocatable :: ic_fNode, ic_nsc, ic_nBrnch
 	double precision, dimension(:,:,:),  allocatable :: ic_brnch, ic_llimits, ic_plimits
 	double precision, allocatable :: ic_climits(:,:,:), ic_volFac(:)
 	double precision, dimension(:),  allocatable :: ic_Z, ic_Zold, ic_info, ic_vnow, ic_hilike, ic_inc
@@ -889,21 +889,21 @@ contains
 			open(unit=funit1,file=resumename,status='old')
                 	  	
 			read(funit1,*)genLive
-			read(funit1,*)globff,numlike,ic_n,nlive
+			read(funit1,*)globff,numlike,ic_n(1),nlive
 			read(funit1,*)gZ,ginfo
-			ic_rFlag(1:ic_n)=.true.
+			ic_rFlag(1:ic_n(1))=.true.
 			read(funit1,*)eswitch
 			peswitch=eswitch
 			if(eswitch) totVol=1.d0
 			
 			!read branching info
-	            	do i=1,ic_n
+	            	do i=1,ic_n(1)
             			read(funit1,*)ic_nBrnch(i)
 				if(ic_nBrnch(i)>0) read(funit1,*)ic_brnch(i,1:ic_nBrnch(i),1),ic_brnch(i,1:ic_nBrnch(i),2)
 			enddo
 				
 			!read the node info
-			do i=1,ic_n
+			do i=1,ic_n(1)
 				read(funit1,*)ic_done(i),ic_reme(i),ic_fNode(i),ic_npt(i)
 				read(funit1,*)ic_vnow(i),ic_Z(i),ic_info(i)
 				if(ceff) then
@@ -911,7 +911,7 @@ contains
 					ic_eff(i,3)=ic_eff(i,4)
 				endif
 			enddo
-			if(.not.eswitch .or. ic_n==1) ic_npt(1)=nlive
+			if(.not.eswitch .or. ic_n(1)==1) ic_npt(1)=nlive
                   	close(funit1)
 			eswitchff=0
 			
@@ -1038,7 +1038,7 @@ contains
 		!find the highest likelihood for each node
 		j=0
 		ic_done(0)=.true.
-		do i=1,ic_n
+		do i=1,ic_n(1)
 			ic_hilike(i)=maxval(l(j+1:j+ic_npt(i)))
 			lowlike=minval(l(j+1:j+ic_npt(i)))
 			ic_inc(i)=ic_hilike(i)+log(ic_vnow(i))-ic_Z(i)
@@ -1074,15 +1074,15 @@ contains
     	
 #ifdef MPI
 	call MPI_BARRIER(MPI_COMM_WORLD,errcode)
-	call MPI_BCAST(ic_n,1,MPI_INTEGER,0,MPI_COMM_WORLD,errcode)
-	call MPI_BCAST(ic_npt(1:ic_n),ic_n,MPI_INTEGER,0,MPI_COMM_WORLD,errcode)
+	call MPI_BCAST(ic_n(1),1,MPI_INTEGER,0,MPI_COMM_WORLD,errcode)
+	call MPI_BCAST(ic_npt(1:ic_n(1)),ic_n(1),MPI_INTEGER,0,MPI_COMM_WORLD,errcode)
 #endif
 		
 	do ff=1,maxIter
 
 #ifdef MPI
     		call MPI_BARRIER(MPI_COMM_WORLD,errcode)
-    		call MPI_BCAST(ic_done(0:ic_n),ic_n+1,MPI_LOGICAL,0,MPI_COMM_WORLD,errcode)
+    		call MPI_BCAST(ic_done(0:ic_n(1)),ic_n(1)+1,MPI_LOGICAL,0,MPI_COMM_WORLD,errcode)
 #endif	
 		!stopping condition reached
 		if(ic_done(0)) then
@@ -1095,11 +1095,11 @@ contains
 	                        	write(fmt,'(a,i5,a)')  '(',totPar+1,'E28.18,i4)'
 					open(unit=funit1,file=fName1,form='formatted',status='replace')
 					write(funit1,'(l2)').false.
-					write(funit1,'(4i12)')globff,numlike,ic_n,nlive
+					write(funit1,'(4i12)')globff,numlike,ic_n(1),nlive
 					write(funit1,'(2E28.18)')gZ,ginfo
 					write(funit1,'(l2)')eswitch
 	            			!write branching info
-		            		do i=1,ic_n
+		            		do i=1,ic_n(1)
 	            				write(funit1,'(i4)')ic_nBrnch(i)
 						if(ic_nBrnch(i)>0) then
 							write(fmt,'(a,i5,a)')  '(',2*ic_nBrnch(i),'E28.18)'
@@ -1107,7 +1107,7 @@ contains
 						endif
 					enddo
 					!write the node info
-					do i=1,ic_n
+					do i=1,ic_n(1)
 						write(funit1,'(2l2,i6,i12)')ic_done(i),ic_reme(i),ic_fNode(i),ic_npt(i)
 						write(funit1,'(3E28.18)')ic_vnow(i),ic_Z(i),ic_info(i)
 						if(ceff) write(funit1,'(1E28.18)')ic_eff(i,4)
@@ -1128,13 +1128,13 @@ contains
 				!fback
                 		if(fback) call gfeedback(gZ,IS,IS_Z,numlike,globff,.false.)
 				
-				call pos_samp(Ztol,globff,broot,nlive,ndims,nCdims,totPar,multimodal,outfile,gZ,ginfo,ic_n,ic_Z(1:ic_n), &
-				ic_info(1:ic_n),ic_reme(1:ic_n),ic_vnow(1:ic_n),ic_npt(1:ic_n),ic_nBrnch(1:ic_n),ic_brnch(1:ic_n,:,1),phyP(:,1:nlive), &
+				call pos_samp(Ztol,globff,broot,nlive,ndims,nCdims,totPar,multimodal,outfile,gZ,ginfo,ic_n(1),ic_Z(1:ic_n(1)), &
+				ic_info(1:ic_n(1)),ic_reme(1:ic_n(1)),ic_vnow(1:ic_n(1)),ic_npt(1:ic_n(1)),ic_nBrnch(1:ic_n(1)),ic_brnch(1:ic_n(1),:,1),phyP(:,1:nlive), &
 				l(1:nlive),evDataAll,IS,IS_Z,dumper,context)
 				
 				!if done then add in the contribution to the global evidence from live points
 				j=0
-				do i1=1,ic_n
+				do i1=1,ic_n(1)
 					!live point's contribution to the evidence
                 			logX=log(ic_vnow(i1)/dble(ic_npt(i1)))
 					do i=j+1,j+ic_npt(i1)
@@ -1182,7 +1182,7 @@ contains
 		
 		if(my_rank==0) then
 			!mode separation
-			if(ff/=1 .and. eswitch .and. multimodal .and. mod(ff,15)==0 .and. ic_n<maxCls) then
+			if(ff/=1 .and. eswitch .and. multimodal .and. mod(ff,15)==0 .and. ic_n(1)<maxCls) then
 			
 !				if(mod(ff,30)==0) then
 					nCdim=nCdims
@@ -1197,19 +1197,19 @@ contains
 				aux(totPar+2:naux,1:nlive)=p(nCdim+1:ndims,1:nlive)
 				
 				!save old no. of modes
-				i=ic_n
+				i=ic_n(1)
 				nptk(1:i)=ic_npt(1:i)
 				
 				!decide which nodes to check for mode separation
-				ic_chk(1:ic_n)=.not.(ic_done(1:ic_n))
-				do j=1,ic_n
+				ic_chk(1:ic_n(1))=.not.(ic_done(1:ic_n(1)))
+				do j=1,ic_n(1)
 					if(ic_chk(j)) then
 						if(ic_inc(j)<log(0.5d0)) ic_chk(j)=.false.
 					endif
 				enddo
 				
 				modeFound=isolateModes2(nlive,ndims,nCdim,p(1:nCdim,1:nlive),naux,aux(1:naux,:), &
-				ic_n,ic_fnode,ic_npt,ic_reme,ic_chk(1:ic_n),ic_vnow(1:ic_n),ic_rFlag,ic_climits(:,1:nCdim,:))
+				ic_n(1),ic_fnode,ic_npt,ic_reme,ic_chk(1:ic_n(1)),ic_vnow(1:ic_n(1)),ic_rFlag,ic_climits(:,1:nCdim,:))
 
 				if(modeFound) then			
 					!re-arrange info
@@ -1218,13 +1218,13 @@ contains
 					p(nCdim+1:ndims,1:nlive)=aux(totPar+2:naux,1:nlive)
 					
 					if(nCdims<ndims .or. .true.) then
-						ic_sc(i+1:ic_n)=1
-						sc_npt(sc_n+1:sc_n+ic_n-i)=ic_npt(i+1:ic_n)
-						sc_n=sc_n+ic_n-i
+						ic_sc(i+1:ic_n(1))=1
+						sc_npt(sc_n+1:sc_n+ic_n(1)-i)=ic_npt(i+1:ic_n(1))
+						sc_n=sc_n+ic_n(1)-i
 					endif
 					
 					!new nodes should inherit nsc from their parents
-					do j=i+1,ic_n
+					do j=i+1,ic_n(1)
 						ic_nsc(j)=nsc_def
 						ic_nsc(ic_fNode(j))=nsc_def
 						
@@ -1238,7 +1238,7 @@ contains
 					nodek(1:i)=0
 					!first the new nodes
 					q=sum(ic_npt(1:i))
-					do j=i+1,ic_n
+					do j=i+1,ic_n(1)
 						if(ic_rFlag(j)) then
 							!parent node
 							k=ic_fNode(j)
@@ -1297,7 +1297,7 @@ contains
 						q=q+ic_npt(j)
 						m=m+ic_sc(j)
 					enddo
-					ic_rFlag(1:ic_n)=.true.
+					ic_rFlag(1:ic_n(1))=.true.
 				endif
 			endif
 			
@@ -1310,7 +1310,7 @@ contains
 				q=0 !no. of sub-clusters traversed
 				m=0 !no. of points traversed
 				n=0 !no. of sub-clusters created so far
-				do i1=1,ic_n
+				do i1=1,ic_n(1)
 					if(ic_npt(i1)==0) then
 						totvol(i1) = 0d0
 						sck(i1)=0
@@ -1516,7 +1516,7 @@ contains
 							flag=.true.
 							ic_done(i1)=.true.
 							ic_done(0)=.true.
-							do i3=1,ic_n
+							do i3=1,ic_n(1)
 								if(.not.ic_done(i3)) then
 									ic_done(0)=.false.
 									exit
@@ -1563,9 +1563,9 @@ contains
 				
 				if(flag2) then
 					!update mode info
-					ic_sc(1:ic_n)=sck(1:ic_n)
+					ic_sc(1:ic_n(1))=sck(1:ic_n(1))
 					!update sub-cluster info
-					sc_n=sum(ic_sc(1:ic_n))
+					sc_n=sum(ic_sc(1:ic_n(1)))
 					sc_mean(1:sc_n,:)=meank(1:sc_n,:)
 					sc_invcov(1:sc_n,:,:)=invcovk(1:sc_n,:,:)
 					sc_tMat(1:sc_n,:,:)=tMatk(1:sc_n,:,:)
@@ -1582,7 +1582,7 @@ contains
 				endif
 			endif
 			
-			ic_rFlag(1:ic_n)=.false.
+			ic_rFlag(1:ic_n(1))=.false.
 		endif
 		
 		
@@ -1595,21 +1595,21 @@ contains
 		call MPI_BCAST(lowlike,1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,errcode)
 		
 		if(modeFound) then
-			call MPI_BCAST(ic_n,1,MPI_INTEGER,0,MPI_COMM_WORLD,errcode)
-			call MPI_BCAST(ic_npt(1:ic_n),ic_n,MPI_INTEGER,0,MPI_COMM_WORLD,errcode)
-    			call MPI_BCAST(ic_done(0:ic_n),ic_n+1,MPI_LOGICAL,0,MPI_COMM_WORLD,errcode)
+			call MPI_BCAST(ic_n(1),1,MPI_INTEGER,0,MPI_COMM_WORLD,errcode)
+			call MPI_BCAST(ic_npt(1:ic_n(1)),ic_n(1),MPI_INTEGER,0,MPI_COMM_WORLD,errcode)
+    			call MPI_BCAST(ic_done(0:ic_n(1)),ic_n+1,MPI_LOGICAL,0,MPI_COMM_WORLD,errcode)
 		endif
 		
 		if(flag2 .and. eswitch) then
 			call MPI_BCAST(sc_n,1,MPI_INTEGER,0,MPI_COMM_WORLD,errcode)
-			call MPI_BCAST(ic_sc(1:ic_n),ic_n,MPI_INTEGER,0,MPI_COMM_WORLD,errcode)
+			call MPI_BCAST(ic_sc(1:ic_n(1)),ic_n(1),MPI_INTEGER,0,MPI_COMM_WORLD,errcode)
 			call MPI_BCAST(sc_mean(1:sc_n,1:ndims),sc_n*ndims,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,errcode)
 			call MPI_BCAST(sc_tmat(1:sc_n,1:ndims,1:ndims),sc_n*ndims*ndims,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,errcode)
 			call MPI_BCAST(sc_kfac(1:sc_n),sc_n,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,errcode)
 			call MPI_BCAST(sc_eff(1:sc_n),sc_n,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,errcode)
 			call MPI_BCAST(sc_vol(1:sc_n),sc_n,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,errcode)
-			call MPI_BCAST(ic_climits(1:ic_n,1:ndims,1:2),ic_n*ndims*2,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,errcode)
-			call MPI_BCAST(ic_volFac(1:ic_n),ic_n,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,errcode)
+			call MPI_BCAST(ic_climits(1:ic_n(1),1:ndims,1:2),ic_n(1)*ndims*2,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,errcode)
+			call MPI_BCAST(ic_volFac(1:ic_n(1)),ic_n(1),MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,errcode)
 		endif
 #endif
 
@@ -1619,7 +1619,7 @@ contains
 			nd_i = 0 !no. of ellipsoids traversed
 			nd_j = 0 !no. of points traversed
 			flag = .false.
-			do i = 1, ic_n
+			do i = 1, ic_n(1)
 				IS_V(i) = 0d0
 				if( IS_GetVolInsidePrior ) then
 					do k = nd_i+1, nd_i+ic_sc(i)
@@ -1704,7 +1704,7 @@ contains
 						IS_allpts(j,ndims+3) = 0d0
 						
 						nd_i = 0 !no. of ellipsoids traversed
-						do i = 1, ic_n
+						do i = 1, ic_n(1)
 							if( ic_done(i) .or. totvol(i) == 0d0 .or. ic_npt(i) == 0 .or. ( multimodal .and. .not.isAncestor(int(IS_allpts(j,ndims+6)), i, ic_fnode(1:i)) ) ) then
 								nd_i = nd_i+ic_sc(i)
 								cycle
@@ -1742,11 +1742,11 @@ contains
 
 		nd_i=0 !no. of ellipsoids traversed
 		nd_j=0 !no. of points traversed
-		do nd=1,ic_n
+		do nd=1,ic_n(1)
 			if(ic_npt(nd)<ndims+1 .or. (ic_sc(nd)==1 .and. sc_vol(nd_i+1)==0.d0)) then
 				ic_done(nd)=.true.
 				ic_done(0)=.true.
-				do i3=1,ic_n
+				do i3=1,ic_n(1)
 					if(.not.ic_done(i3)) then
 						ic_done(0)=.false.
 						exit
@@ -2346,7 +2346,7 @@ contains
 							
 						!check if all done
 						ic_done(0)=.true.
-						do i=1,ic_n
+						do i=1,ic_n(1)
 							if(.not.ic_done(i)) then
 								ic_done(0)=.false.
 								exit
@@ -2400,7 +2400,7 @@ contains
 						write(fmt,'(a,i5,a)')  '(',totPar+1,'E28.18,i4)'
 	                			write(fmt1,'(a,i5,a)')  '(',ndims+1,'E28.18)'
 						k=0
-						do i=1,ic_n
+						do i=1,ic_n(1)
 							do j=1,ic_npt(i)
 								k=k+1
 								write(funit1,fmt) phyP(1:totPar,k),l(k),i
@@ -2419,12 +2419,12 @@ contains
 						open(unit=funit1,file=fName1,form='formatted',status='replace')
 	                	  	
 						write(funit1,'(l2)')genLive
-						write(funit1,'(4i12)')globff,numlike,ic_n,nlive
+						write(funit1,'(4i12)')globff,numlike,ic_n(1),nlive
 						write(funit1,'(2E28.18)')gZ,ginfo
 						write(funit1,'(l2)')eswitch
 					
 	            				!write branching info
-		            			do i=1,ic_n
+		            			do i=1,ic_n(1)
 	            					write(funit1,'(i4)')ic_nBrnch(i)
 							if(ic_nBrnch(i)>0) then
 								write(fmt,'(a,i5,a)')  '(',2*ic_nBrnch(i),'E28.18)'
@@ -2433,7 +2433,7 @@ contains
 						enddo
 					
 						!write the node info
-						do i=1,ic_n
+						do i=1,ic_n(1)
 							write(funit1,'(2l2,i6,i12)')ic_done(i),ic_reme(i),ic_fNode(i),ic_npt(i)
 							write(funit1,'(3E28.18)')ic_vnow(i),ic_Z(i),ic_info(i)
 							if(ceff) write(funit1,'(1E28.18)')ic_eff(i,4)
@@ -2473,7 +2473,7 @@ contains
 					if( .not.ic_done(0) .and. prior_warning .and. mod(ff,50)== 0 ) then
 						flag = .false.
 						k=0
-						do i=1,ic_n
+						do i=1,ic_n(1)
 							if( ic_npt(i) == 0 .or. ic_done(i) ) cycle
 								
 							ic_mean(i,1:ndims) = 0d0
@@ -2505,8 +2505,8 @@ contains
 					endif
 					
 					if(mod(sff,updInt*10)==0 .or. ic_done(0)) call pos_samp(Ztol,globff,broot,nlive,ndims,nCdims,totPar, &
-					multimodal,outfile,gZ,ginfo,ic_n,ic_Z(1:ic_n),ic_info(1:ic_n),ic_reme(1:ic_n),ic_vnow(1:ic_n),ic_npt(1:ic_n), &
-					ic_nBrnch(1:ic_n),ic_brnch(1:ic_n,:,1),phyP(:,1:nlive),l(1:nlive),evDataAll,IS,IS_Z,dumper,context)
+					multimodal,outfile,gZ,ginfo,ic_n(1),ic_Z(1:ic_n(1)),ic_info(1:ic_n(1)),ic_reme(1:ic_n(1)),ic_vnow(1:ic_n(1)),ic_npt(1:ic_n(1)), &
+					ic_nBrnch(1:ic_n(1)),ic_brnch(1:ic_n(1),:,1),phyP(:,1:nlive),l(1:nlive),evDataAll,IS,IS_Z,dumper,context)
 				endif
 			endif
 			
@@ -2527,7 +2527,7 @@ contains
 			!update the total volume
 			if(eswitch) then
 				k = 0
-				do i = 1, ic_n
+				do i = 1, ic_n(1)
 					if( ic_done(i) ) then
 						totVol(i) = 0d0
 					else
@@ -2561,7 +2561,7 @@ contains
 						d1=0.d0
 						d2=0.d0
 						j=0
-						do i=1,ic_n
+						do i=1,ic_n(1)
 							if(ic_done(i)) then
 								j=j+ic_sc(i)
 								cycle
@@ -2570,8 +2570,8 @@ contains
 							d2=d2+sum(sc_vol(j+1:j+ic_sc(i)))
 							j=j+ic_sc(i)
 						enddo
-						write(*,*)ic_n,sc_n,d2/d1,count,scount
-						if(ceff) write(*,*)ic_eff(1:ic_n,4)
+						write(*,*)ic_n(1),sc_n,d2/d1,count,scount
+						if(ceff) write(*,*)ic_eff(1:ic_n(1),4)
 					endif
 				endif
 			endif

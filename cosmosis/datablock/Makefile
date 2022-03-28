@@ -2,7 +2,7 @@ ifneq (clean,$(MAKECMDGOALS))
 include ${COSMOSIS_SRC_DIR}/config/compilers.mk
 endif
 
-USER_CFLAGS=$(PEDANTIC_C_FLAGS) -Werror
+USER_CFLAGS=$(PEDANTIC_C_FLAGS) 
 USER_CXXFLAGS=$(PEDANTIC_C_FLAGS)
 
 ifneq ($(CONDA_PREFIX),)

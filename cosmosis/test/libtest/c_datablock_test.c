@@ -90,18 +90,20 @@ void test_array_int()
   assert(c_datablock_get_array_length(s, "x", "cow") == sz);
 
   /* Get with preallocated buffer should return the right value. */
-  const int big = 100;
-  int buffer[big];
-  assert(c_datablock_get_int_array_1d_preallocated(s, "x", "cow", buffer, &length, big) == DBS_SUCCESS);
+ #define BIG 100
+  int buffer[BIG];
+  assert(c_datablock_get_int_array_1d_preallocated(s, "x", "cow", buffer, &length, BIG) == DBS_SUCCESS);
+ #undef BIG
   /* Get with a too-small buffer should fail, and leave the buffer
      untouched. The returned value of length will say how big the
      buffer needs to be. */
-  const int small = 1;
-  int too_small[small];
+ #define SMALL 1
+  int too_small[SMALL];
   too_small[0] = INT_MIN;
   length = 0;
-  assert(c_datablock_get_int_array_1d_preallocated(s, "x", "cow", too_small, &length, small) ==
+  assert(c_datablock_get_int_array_1d_preallocated(s, "x", "cow", too_small, &length, SMALL) ==
          DBS_SIZE_INSUFFICIENT);
+ #undef SMALL
   assert(too_small[0] == INT_MIN);
   assert(length == sz);
   /* Put of the same name into a different section should not collide. */
@@ -262,7 +264,7 @@ void test_ndim(){
   printf("In test_ndim\n");
 
 {  c_datablock* s = make_c_datablock();
-  DATABLOCK_STATUS status = 0;
+  DATABLOCK_STATUS status = DBS_SUCCESS;
   int x[4*4*4], y[5*5], z[17];
   int xsize[3], ysize[2], zsize[1];
   xsize[0] = 4; xsize[1] = 4; xsize[2] = 4;
@@ -290,7 +292,7 @@ void test_ndim(){
 }
 {
   c_datablock* s = make_c_datablock();
-  DATABLOCK_STATUS status = 0;
+  DATABLOCK_STATUS status = DBS_SUCCESS;
   double x[4*4*4], y[5*5], z[17];
   int xsize[3], ysize[2], zsize[1];
   xsize[0] = 4; xsize[1] = 4; xsize[2] = 4;
