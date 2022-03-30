@@ -1,0 +1,152 @@
+# Have we been set up already?
+cosmo_cmd=$(type cosmosis 2> /dev/null)
+if [ ! -z "$cosmo_cmd" ]
+then
+  echo CosmoSIS and conda are already set up.
+  return 0
+fi
+
+# detect COSMOSIS_SRC_DIR
+cosmosis_dir=$( (builtin cd $( dirname ${BASH_SOURCE[0]}); /bin/pwd) )
+cosmosis_dir=${cosmosis_dir%/config}
+export COSMOSIS_SRC_DIR="$cosmosis_dir"
+export COSMOSIS_OMP=1
+
+# let's find the name of the conda environment we want to use
+CONDA_ENV_NAME=$1
+if [ -z "$CONDA_ENV_NAME" ]
+then
+  echo "=================================================================\n"
+  echo "Hey! You must supply a conda environment name"
+  echo "You can list them with 'conda env list'"
+  echo "\n=================================================================\n"
+  return 1
+fi
+
+
+# Modules - depends on the machine
+if [ "$NERSC_HOST" == "cori" ]
+then
+	set -x
+	set -e
+	#Building global cosmosis install
+	VERSION=1
+	PYVERSION=3.9
+	ENVDIR=/global/cfs/cdirs/des/zuntz/cosmosis-global/env-${VERSION}
+
+	module load python/3.9-anaconda-2021.11  # to get conda,sh mostly
+	module swap PrgEnv-intel PrgEnv-gnu
+	module load gsl/2.7
+	module load cray-fftw/3.3.8.10
+	module unload craype-hugepages2M
+elif  [ "$NERSC_HOST" == "perlmutter" ]
+then
+	echo "Working on Perlmutter! Using Perlmutter-compiled modules -and- Conda"
+	# unfortunate behavior if re-loaded
+	if module is-loaded PrgEnv-gnu 
+	then 
+		echo "module PrgEnv-gnu already loaded"
+	else  
+		module load PrgEnv-gnu
+	fi
+	module load nvidia-mixed #possible you don't need
+        #module load gcc-mixed, use this for PrgEnv-nvidia
+	module unload darshan
+        module load cudatoolkit
+	module load python/3.9-anaconda-2021.11  # to get conda,sh mostly
+        #module load cray-mpich-abi #if we use this, no need for LD_LIBRARY_PATH
+
+	# following Joe but we don't think we can- nvidia commpilers
+	#module load nersc-easybuild/.21.12
+	#module load GSL/2.6-GCC-10.2.0
+	#module load FFTW/3.3.8-gompi-2020b
+	# done following joe
+
+	module list
+else
+	echo "Unknown NERSC host - was expecting NERSC_HOST variable to be 'cori' or 'perlmutter'"
+	return 1
+fi
+
+# Ok then.
+conda activate ${CONDA_ENV_NAME} || { echo "Failed to activate conda environment" ; return 1; }
+
+# Compilers
+if [ "$NERSC_HOST" == "cori" ]
+then
+	# the belief in 2022 is that this is hackier than the Perlmutter branch
+	export COSMOSIS_ALT_COMPILERS=1
+	export CC=gcc
+	export CXX=g++
+	export FC=gfortran
+	export MPIFC=ftn
+	export MPIF90=ftn
+	export LAPACK_LINK="-L$CRAY_LIBSCI_PREFIX_DIR/lib -lsci_gnu"
+elif  [ "$NERSC_HOST" == "perlmutter" ]
+then
+	echo "alt compilers  on Perlmutter!"
+	export COSMOSIS_ALT_COMPILERS=1
+	export CC=cc
+	export CXX=CC
+	#export FC=ftn
+        export FC=gfortran
+	export MPIFC=ftn
+        #export MPIFC=gfortran, this one is in question
+	# Environment variables for compilation
+	export FFTW_INCLUDE_DIR=$FFTW_INC
+	export FFTW_LIBRARY=$FFTW_DIR
+	export CFITSIO_DIR=$CONDA_PREFIX
+	export CFITSIO_INC=$CFITSIO_DIR/include
+	export CFITSIO_LIB=$CFITSIO_DIR/lib
+	#export LAPACK_LINK="-L$CRAY_LIBSCI_PREFIX_DIR/lib -lsci_nvidia"
+	export LAPACK_LINK="-L$CRAY_LIBSCI_PREFIX_DIR/lib -lsci_gnu"
+	export GSL_INC=$CONDA_PREFIX/include
+	export GSL_LIB=$CONDA_PREFIX/lib
+	LD_LIBRARY_PATH=/opt/cray/pe/mpich/8.1.13/ofi/gnu/9.1/lib-abi-mpich:$LD_LIBRARY_PATH
+fi
+export COSMOSIS_OMP=1
+
+
+
+#if [ 1 == 0] then
+#	# Environment variables for runtime
+#	# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$COSMOSIS_SRC_DIR/cosmosis/datablock:$COSMOSIS_SRC_DIR/cosmosis-standard-library/likelihood/planck2015/plc-2.0/:$CFITSIO_LIB:$GSL_LIB:$FFTW_LIBRARY
+#	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$COSMOSIS_SRC_DIR/cosmosis/datablock:$COSMOSIS_SRC_DIR/cosmosis-standard-library/likelihood/planck2015/plc-2.0/
+#	
+#	export PYTHONPATH=${COSMOSIS_SRC_DIR}:$PYTHONPATH
+#	export PATH=$COSMOSIS_SRC_DIR/bin:$PATH
+#fi
+
+PRE_CONDA_PS1=$PS1
+
+function git-show-top-level {
+    local __toplevel=`git rev-parse --show-toplevel 2> /dev/null`
+    if [ -z "$__toplevel" ]
+    then
+        :
+    else
+        echo "(`basename $__toplevel 2> /dev/null`) "
+    fi
+}
+
+function set-git-prompt-repo-name {
+  if [ ! -z "${PS1-}" ] 
+  then
+    export OLD_PS1="$PS1"
+    local __git_repo='`git-show-top-level`'
+    export PS1="\[$(tput setaf 4)\]$__git_repo\[$(tput sgr0)\]${PRE_CONDA_PS1}"
+  echo "Your prompt will now show which repository (part of cosmosis) you are in"
+  echo "Use the command reset-prompt to undo this"
+  echo
+  fi
+}
+
+function reset-prompt {
+  export PS1="$OLD_PS1"
+}
+
+echo
+echo "CosmoSIS initialized"
+echo
+
+set-git-prompt-repo-name
