@@ -103,6 +103,10 @@ then
 	export GSL_INC=$CONDA_PREFIX/include
 	export GSL_LIB=$CONDA_PREFIX/lib
 	LD_LIBRARY_PATH=/opt/cray/pe/mpich/8.1.13/ofi/gnu/9.1/lib-abi-mpich:$LD_LIBRARY_PATH
+	#                         path                                               /git name / code
+	export COSMOSIS_SRC_DIR=/global/common/software/des/annis/cosmosis_perlmutter/cosmosis/cosmosis
+	export PATH=$COSMOSIS_SRC_DIR/../bin:$PATH
+	export PYTHONPATH=${COSMOSIS_SRC_DIR}/..
 fi
 export COSMOSIS_OMP=1
 
