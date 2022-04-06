@@ -2,15 +2,18 @@
 cosmo_cmd=$(type cosmosis 2> /dev/null)
 if [ ! -z "$cosmo_cmd" ]
 then
-  echo CosmoSIS and conda are already set up.
+  echo CosmoSIS is already set up.
   return 0
 fi
 
 # detect COSMOSIS_SRC_DIR
 cosmosis_dir=$( (builtin cd $( dirname ${BASH_SOURCE[0]}); /bin/pwd) )
 cosmosis_dir=${cosmosis_dir%/config}
-export COSMOSIS_SRC_DIR="$cosmosis_dir"
+export COSMOSIS_SRC_DIR="$cosmosis_dir"/cosmosis
+
 export COSMOSIS_OMP=1
+# We want to make sure we don't use 256 OpenMP threads per rank!
+export OMP_NUM_THREADS=4
 
 # let's find the name of the conda environment we want to use
 CONDA_ENV_NAME=$1
@@ -104,7 +107,6 @@ then
 	export GSL_LIB=$CONDA_PREFIX/lib
 	LD_LIBRARY_PATH=/opt/cray/pe/mpich/8.1.13/ofi/gnu/9.1/lib-abi-mpich:$LD_LIBRARY_PATH
 	#                         path                                               /git name / code
-	export COSMOSIS_SRC_DIR=/global/common/software/des/annis/cosmosis_perlmutter/cosmosis/cosmosis
 	export PATH=$COSMOSIS_SRC_DIR/../bin:$PATH
 	export PYTHONPATH=${COSMOSIS_SRC_DIR}/..
 fi
@@ -153,4 +155,7 @@ echo
 echo "CosmoSIS initialized"
 echo
 
-set-git-prompt-repo-name
+echo "If you would like CosmoSIS to decorate your prompt, please run"
+echo "  set-git-prompt-repo-name"
+
+#set-git-prompt-repo-name
