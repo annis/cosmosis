@@ -52,7 +52,6 @@ then
 	else  
 		module load PrgEnv-gnu
 	fi
-	module load nvidia-mixed #possible you don't need
 	module unload darshan
         module load cudatoolkit
 	module load python/3.9-anaconda-2021.11  # to get conda,sh mostly
