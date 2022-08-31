@@ -31,11 +31,11 @@ else
 endif
 
 
-ifeq ($(COSMOSIS_DEBUG),1)
-FFLAGS += -fPIC -ffree-line-length-none
-else
-FFLAGS += -O3 -fPIC -ffree-line-length-none
-endif
+#ifeq ($(COSMOSIS_DEBUG),1)
+#FFLAGS += -fPIC -ffree-line-length-none
+#else
+#FFLAGS += -O3 -fPIC -ffree-line-length-none
+#endif
 
 ifeq ($(LAPACK_LINK),)
 LAPACKLIB = -llapack

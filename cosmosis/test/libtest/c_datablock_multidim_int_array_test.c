@@ -38,7 +38,7 @@ int main()
   assert(c_datablock_has_value(s, "a", "e23") == true);
   assert(c_datablock_has_value(s, "a", "e23a"));
   /* Get what we just inserted */
-  const int ndims = 2;
+  #define ndims 2
   int extents[ndims];
   assert(c_datablock_get_int_array_shape(s, "a", "e23",
                                          ndims, extents) == DBS_SUCCESS);
@@ -51,6 +51,7 @@ int main()
     for (int j = 0; j != 3; ++j)
       { assert(xx[i][j] == e_2_3[i][j]); }
   assert(c_datablock_get_int_array(s, "a", "e23", &(xx[0][0]), ndims, extents) == DBS_SUCCESS);
+  #undef ndims
   for (int i = 0; i != 2; ++i)
     for (int j = 0; j != 3; ++j)
       { assert(xx[i][j] == e_2_3[i][j]); }
