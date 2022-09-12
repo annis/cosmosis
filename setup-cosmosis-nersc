@@ -105,6 +105,8 @@ then
 	#                         path                                               /git name / code
 	export PATH=$COSMOSIS_SRC_DIR/../bin:$PATH
 	export PYTHONPATH=${COSMOSIS_SRC_DIR}/..
+	# necessary because of a change documented at: https://docs.nersc.gov/systems/perlmutter/timeline/ on Sept 7, 2022
+	export MPICH_GPU_SUPPORT_ENABLED=0
 fi
 export COSMOSIS_OMP=1
 
