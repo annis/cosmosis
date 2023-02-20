@@ -52,6 +52,8 @@ then
 	else  
 		module load PrgEnv-gnu
 	fi
+	# necessary because of a change documented at: https://docs.nersc.gov/systems/perlmutter/timeline/ on Sept 7, 2022
+	module unload gpu
 	module unload darshan
         module load cudatoolkit
 	module load python/3.9-anaconda-2021.11  # to get conda,sh mostly
@@ -101,12 +103,14 @@ then
 	# this works as of April 2022
 	#LD_LIBRARY_PATH=/opt/cray/pe/mpich/8.1.13/ofi/gnu/9.1/lib-abi-mpich:$LD_LIBRARY_PATH
 	# test the use of the higher version number May 19, 2022
-	LD_LIBRARY_PATH=/opt/cray/pe/mpich/8.1.15/ofi/gnu/9.1/lib-abi-mpich:$LD_LIBRARY_PATH
+	#LD_LIBRARY_PATH=/opt/cray/pe/mpich/8.1.15/ofi/gnu/9.1/lib-abi-mpich:$LD_LIBRARY_PATH
+        # Above broken as of Feb 2023, so trying this CRAY_MPICH_DIR approach
+	LD_LIBRARY_PATH=$CRAY_MPICH_DIR/lib-abi-mpich:$LD_LIBRARY_PATH
 	#                         path                                               /git name / code
 	export PATH=$COSMOSIS_SRC_DIR/../bin:$PATH
 	export PYTHONPATH=${COSMOSIS_SRC_DIR}/..
 	# necessary because of a change documented at: https://docs.nersc.gov/systems/perlmutter/timeline/ on Sept 7, 2022
-	export MPICH_GPU_SUPPORT_ENABLED=0
+	#export MPICH_GPU_SUPPORT_ENABLED=0
 fi
 export COSMOSIS_OMP=1
 
