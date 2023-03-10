@@ -54,7 +54,7 @@ then
 	fi
 	# necessary because of a change documented at: https://docs.nersc.gov/systems/perlmutter/timeline/ on Sept 7, 2022
 	module unload gpu
-	module unload darshan
+	# module unload darshan   # as of March 2023, not needed as darshan isn't loaded. Delete line in a few months.
         module load cudatoolkit
 	module load python/3.9-anaconda-2021.11  # to get conda,sh mostly
         #module load cray-mpich-abi #if we use this, no need for LD_LIBRARY_PATH
