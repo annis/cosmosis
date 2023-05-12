@@ -79,6 +79,7 @@ class PolychordSampler(ParallelSampler):
     parallel_output = False
     sampler_outputs = [("prior", float), ("like", float), ("post", float), ("weight", float)]
     supports_smp=False
+    internal_resume = True
     understands_fast_subspaces = True
 
     def config(self):
@@ -106,7 +107,7 @@ class PolychordSampler(ParallelSampler):
 
         self.ndim = len(self.pipeline.varied_params)
         # We save the prior as well as the other derived params
-        self.nderived = len(self.pipeline.extra_saves) + 1
+        self.nderived = self.pipeline.number_extra + 1
 
         #Required options
         self.live_points    = self.read_ini("live_points", int, 100)

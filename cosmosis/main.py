@@ -7,6 +7,7 @@ import configparser
 import argparse
 import os
 import pdb
+import cProfile
 from .runtime.config import Inifile, CosmosisConfigurationError
 from .runtime.pipeline import LikelihoodPipeline
 from .runtime import mpi_pool
@@ -162,6 +163,7 @@ def setup_output(sampler_class, sampler_number, ini, pool, number_samplers, samp
 
 
 def run_cosmosis(args, pool=None, ini=None, pipeline=None, values=None):
+    no_subprocesses = os.environ.get("COSMOSIS_NO_SUBPROCESS", "") not in ["", "0"]
     # In case we need to hand-hold a naive demo-10 user.
 
     # Load configuration.
@@ -172,18 +174,26 @@ def run_cosmosis(args, pool=None, ini=None, pipeline=None, values=None):
     pre_script = ini.get(RUNTIME_INI_SECTION, "pre_script", fallback="")
     post_script = ini.get(RUNTIME_INI_SECTION, "post_script", fallback="")
 
-    if is_root:
-        # This decodes the exist status
-        status = os.WEXITSTATUS(os.system(pre_script))
-        if status:
-            raise RuntimeError("The pre-run script {} retuned non-zero status {}".format(
-                pre_script, status))
+    if is_root and pre_script:
+        if no_subprocesses:
+            print("Warning: subprocesses not allowed on this system as")
+            print("COSMOSIS_NO_SUBPROCESS variable was set.")
+            print("Ignoring pre-script.")
+        else:
+            status = os.WEXITSTATUS(os.system(pre_script))
+            if status:
+                raise RuntimeError("The pre-run script {} retuned non-zero status {}".format(
+                    pre_script, status))
 
     if is_root and args.mem:
         from cosmosis.runtime.memmon import MemoryMonitor
         # This launches a memory monitor that prints out (from a new thread)
         # the memory usage every args.mem seconds
         mem = MemoryMonitor.start_in_thread(interval=args.mem)
+
+    if args.profile:
+        profile = cProfile.Profile()
+        profile.enable()
 
     # Create pipeline.
     if pipeline is None:
@@ -253,17 +263,38 @@ def run_cosmosis(args, pool=None, ini=None, pipeline=None, values=None):
         # It's not fully rolled out to all the suitable samplers yet though.
         resume = ini.getboolean(RUNTIME_INI_SECTION, "resume", fallback=False)
 
+        # Polychord, multinest, and nautilus have their own internal
+        # mechanism for resuming chains.
+        if sampler_class.internal_resume:
+            resume2 = ini.getboolean(sampler_name, "resume", fallback=False)
+            resume = resume or resume2
+
+            if resume and is_root:
+                print(f"Resuming sampling using {sampler_name} internal mechanism, "
+                      "so starting a new output chain file.")
+
+            # Tell the sampler to resume directly
+            if not ini.has_section(sampler_name):
+                ini.add_section(sampler_name)
+            ini.set(sampler_name, "resume", str(resume))
+
+            # Switch off the main cosmosis resume mechanism
+            resume = False
+
         # Not all samplers can be resumed.
         if resume and not sampler_class.supports_resume:
             print("NOTE: You set resume=T in the [runtime] section but the sampler {} does not support resuming yet.  I will ignore this option.".format(sampler_name))
             resume=False
+
 
         if is_root:
             print("****************************")
             print("* Running sampler {}/{}: {}".format(sampler_number+1,number_samplers, sampler_name))
 
         output = setup_output(sampler_class, sampler_number, ini, pool, number_samplers, sample_method, resume)
-        print("****************************")
+
+        if is_root:
+            print("****************************")
 
         #Initialize our sampler, with the class we got above.
         #It needs an extra pool argument if it is a ParallelSampler.
@@ -298,6 +329,14 @@ def run_cosmosis(args, pool=None, ini=None, pipeline=None, values=None):
     if cleanup_pipeline:
         pipeline.cleanup()
 
+    if args.profile:
+        profile.disable()
+        if (pool is not None) and (not args.smp):
+            profile_name = args.profile + f'.{pool.rank}'
+        else:
+            profile_name = args.profile
+        profile.dump_stats(profile_name)
+        profile.print_stats("cumtime")
 
     if is_root and args.mem:
         mem.stop()
@@ -312,10 +351,15 @@ def run_cosmosis(args, pool=None, ini=None, pipeline=None, values=None):
     # But we still offer it
     if post_script and is_root:
         # This decodes the exist status
-        status = os.WEXITSTATUS(os.system(post_script))
-        if status:
-            sys.stdout.write("WARNING: The post-run script {} failed with error {}".format(
-                post_script, error))
+        if no_subprocesses:
+            print("Warning: subprocesses not allowed on this system as")
+            print("COSMOSIS_NO_SUBPROCESS variable was set.")
+            print("Ignoring post-script.")
+        else:
+            status = os.WEXITSTATUS(os.system(post_script))
+            if status:
+                sys.stdout.write("WARNING: The post-run script {} failed with error {}".format(
+                    post_script, error))
 
     return 0
 
@@ -361,6 +405,7 @@ parser.add_argument("-v", "--variables", nargs="*", action=ParseExtraParameters,
 parser.add_argument("--only", nargs="*", help="Fix all parameters except the ones listed")
 parser.add_argument("--graph", type=str, default='', help="Do not run a sampler; instead make a graphviz dot file of the pipeline")
 parser.add_argument('--version', action='version', version=__version__, help="Print out a version number")
+parser.add_argument('--profile' , help="Save profiling (timing) information to this named file")
 
 
 def main():
